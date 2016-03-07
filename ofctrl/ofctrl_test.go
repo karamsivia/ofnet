@@ -257,11 +257,103 @@ func TestCreateDeleteFlow(t *testing.T) {
 		t.Errorf("Error installing the tcp flow")
 	}
 
+
+	//Install flow-miss for SRTE - popmpls, push vlan
+	srmplsFlow, err := ofActor.inputTable.NewFlow(FlowMatch{
+		Ethertype: 0x8847,
+		Priority: 1,
+		MacSa:    &macAddr,
+	})
+	if err != nil {
+		t.Errorf("Error creating srmpls flow. Err: %v", err)
+	}
+	log.Infof("Creating PopMplsPushVlan flow: %+v", srmplsFlow)
+	srmplsFlow.PopMplsPushVlan(1)
+	err = srmplsFlow.Next(ofActor.nextTable)
+	if err != nil {
+		t.Errorf("Error installing srmpls entry. Err: %v", err)
+	}
+
+	var md uint64 = uint64(0x10002)
+	var mdmask uint64 = uint64(0x7ffffffe)
+	var vlan uint16  = 0x1000
+	polFlow, err := ofActor.inputTable.NewFlow(FlowMatch{
+		Priority:     100,
+		Ethertype:    0x0800,
+		VlanId:       vlan,
+		VlanIdMask:   true,
+		Metadata:     &md,
+		MetadataMask: &mdmask,
+	})
+	if err != nil {
+		t.Errorf("Error creating flow {%+v}. Err: %v", polFlow, err)
+	}
+	log.Infof("Creating PopVlanPushMpls flow: %+v", polFlow)
+	polFlow.PopVlanPushMpls(1)
+	err = polFlow.Next(ofActor.nextTable)
+	if err != nil {
+		t.Errorf("Error installing flow {%+v}. Err: %v", polFlow, err)
+	}
+
+	//ipSaAddr := net.ParseIP("10.10.10.10")
+	//ipDaAddr := net.ParseIP("20.10.10.10")
+
+	swapFlow, err := ofActor.nextTable.NewFlow(FlowMatch{
+		Priority:     100,
+		Ethertype:    0x8847,
+		MplsLabel:	  1,
+		MacSa:    &macAddr,
+	})
+	if err != nil {
+		t.Errorf("Error creating flow {%+v}. Err: %v", swapFlow, err)
+	}
+	log.Infof("Creating SwapMpls flow: %+v", swapFlow)
+	swapFlow.SwapMpls(2)
+	err = swapFlow.Next(output)
+	if err != nil {
+		t.Errorf("Error installing flow {%+v}. Err: %v", swapFlow, err)
+	}
+
+	polFlow2, err := ofActor.inputTable.NewFlow(FlowMatch{
+		Priority:     1,
+		Ethertype:    0x0800,
+		VlanId:       vlan,
+		VlanIdMask:   true,
+		Metadata:     &md,
+		MetadataMask: &mdmask,
+	})
+	if err != nil {
+		t.Errorf("Error creating flow {%+v}. Err: %v", polFlow2, err)
+	}
+	log.Infof("Creating PushMpls flow: %+v", polFlow2)
+	polFlow2.PushMpls(3)
+	err = polFlow2.Next(ofActor.nextTable)
+	if err != nil {
+		t.Errorf("Error installing flow {%+v}. Err: %v", polFlow2, err)
+	}
+
+	srmplsFlow2, err := ofActor.inputTable.NewFlow(FlowMatch{
+		Ethertype: 0x8847,
+		Priority: 1,
+		MacDa:    &macAddr,
+	})
+	if err != nil {
+		t.Errorf("Error creating flow. Err: %v", err)
+	}
+	log.Infof("Creating PopMpls flow: %+v", srmplsFlow2)
+	srmplsFlow2.PopMpls()
+	err = srmplsFlow2.Next(ofActor.nextTable)
+	if err != nil {
+		t.Errorf("Error installing entry. Err: %v", err)
+	}
+
+
 	// verify it got installed
 	flowList, err := ofctlFlowDump("ovsbr11")
 	if err != nil {
 		t.Errorf("Error getting flow entry")
 	}
+	log.Infof("flowList: %+v", flowList)
 
 	// Match inport flow
 	if !ofctlFlowMatch(flowList, 0, "priority=100,in_port=1",
@@ -288,6 +380,37 @@ func TestCreateDeleteFlow(t *testing.T) {
 		t.Errorf("IP flow not found in OVS.")
 	}
 
+	// match pop mpls, push vlan flow
+	if !ofctlFlowMatch(flowList, 0, "priority=1,mpls,dl_src=02:01:01:01:01:01",
+		"pop_mpls:0x0800,push_vlan:0x8100,set_field:4097->vlan_vid,goto_table:1") {
+		t.Errorf("Pop Mpls, Push Vlan flow not found in OVS.")
+	}
+
+	// match pop vlan, push mpls flow
+	if !ofctlFlowMatch(flowList, 0, "priority=100,ip,metadata=0x10002/0x7ffffffe,vlan_tci=0x1000/0x1000",
+		"pop_vlan,push_mpls:0x8847,set_field:1->mpls_label,goto_table:1") {
+		t.Errorf("Pop Vlan, Push Mpls flow not found in OVS.")
+	}
+
+	// match swap mpls flow
+	if !ofctlFlowMatch(flowList, 1, "priority=100,mpls,dl_src=02:01:01:01:01:01,mpls_label=1",
+		"set_field:2->mpls_label,output:1") {
+		t.Errorf("Swap Mpls flow not found in OVS.")
+	}
+
+	// match  push mpls flow
+	if !ofctlFlowMatch(flowList, 0, "priority=1,ip,metadata=0x10002/0x7ffffffe,vlan_tci=0x1000/0x1000",
+		"push_mpls:0x8847,set_field:3->mpls_label,goto_table:1") {
+		t.Errorf("Push Mpls flow not found in OVS.")
+	}
+
+	// match pop mpls flow
+	if !ofctlFlowMatch(flowList, 0, "priority=1,mpls,dl_dst=02:01:01:01:01:01",
+		"pop_mpls:0x0800,goto_table:1") {
+		t.Errorf("Pop Mpls flow not found in OVS.")
+	}
+
+
 	// Delete the flow
 	err = inPortFlow.Delete()
 	if err != nil {
@@ -312,11 +435,45 @@ func TestCreateDeleteFlow(t *testing.T) {
 		t.Errorf("Error deleting the tcp flow. Err: %v", err)
 	}
 
+	// Delete the flow
+	err = srmplsFlow.Delete()
+	if err != nil {
+		t.Errorf("Error deleting the tcp flow. Err: %v", err)
+	}
+
+	// Delete the flow
+	err = polFlow.Delete()
+	if err != nil {
+		t.Errorf("Error deleting the tcp flow. Err: %v", err)
+	}
+
+	// Delete the flow
+	err = swapFlow.Delete()
+	if err != nil {
+		t.Errorf("Error deleting the tcp flow. Err: %v", err)
+	}
+
+	// Delete the flow
+	err = polFlow2.Delete()
+	if err != nil {
+		t.Errorf("Error deleting the tcp flow. Err: %v", err)
+	}
+
+	// Delete the flow
+	err = srmplsFlow2.Delete()
+	if err != nil {
+		t.Errorf("Error deleting the tcp flow. Err: %v", err)
+	}
+
+	
+
 	// Make sure they are really gone
 	flowList, err = ofctlFlowDump("ovsbr11")
 	if err != nil {
 		t.Errorf("Error getting flow entry")
 	}
+
+	log.Infof("flowList after delete: %+v", flowList)
 
 	// Match inport flow and see if its still there..
 	if ofctlFlowMatch(flowList, 0, "priority=100,in_port=1",
@@ -340,6 +497,36 @@ func TestCreateDeleteFlow(t *testing.T) {
 	if ofctlFlowMatch(flowList, 1, "priority=100,tcp,tp_dst=80,tcp_flags=+syn",
 		"output:1") {
 		t.Errorf("IP flow not found in OVS.")
+	}
+
+	// match pop mpls, push vlan flow
+	if ofctlFlowMatch(flowList, 0, "priority=1,mpls,dl_src=02:01:01:01:01:01",
+		"pop_mpls:0x0800,push_vlan:0x8100,set_field:4097->vlan_vid,goto_table:1") {
+		t.Errorf("Pop Mpls, Push Vlan flow  found in OVS.")
+	}
+
+	// match pop vlan, push mpls flow
+	if ofctlFlowMatch(flowList, 0, "priority=100,ip,metadata=0x10002/0x7ffffffe,vlan_tci=0x1000/0x1000",
+		"pop_vlan,push_mpls:0x8847,set_field:1->mpls_label,goto_table:1") {
+		t.Errorf("Pop Vlan, Push Mpls flow  found in OVS.")
+	}
+
+	// match swap mpls flow
+	if ofctlFlowMatch(flowList, 1, "priority=100,mpls,dl_src=02:01:01:01:01:01,mpls_label=1",
+		"set_field:2->mpls_label,output:1") {
+		t.Errorf("Swap Mpls flow  found in OVS.")
+	}
+
+	// match  push mpls flow
+	if ofctlFlowMatch(flowList, 0, "priority=1,ip,metadata=0x10002/0x7ffffffe,vlan_tci=0x1000/0x1000",
+		"push_mpls:0x8847,set_field:3->mpls_label,goto_table:1") {
+		t.Errorf("Push Mpls flow  found in OVS.")
+	}
+
+	// match pop mpls flow
+	if ofctlFlowMatch(flowList, 0, "priority=1,mpls,dl_dst=02:01:01:01:01:01",
+		"pop_mpls:0x0800,goto_table:1") {
+		t.Errorf("Pop Mpls flow  found in OVS.")
 	}
 }
 

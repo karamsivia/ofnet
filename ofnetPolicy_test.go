@@ -132,6 +132,37 @@ func TestPolicyAddDelete(t *testing.T) {
 		return
 	}
 
+	srtePol := &OfnetPolicy{ 
+		EndptgpID:		300,
+		PolicyId:   	"srtePol",//policy identifier
+		PolicyType:		"TEPolicy", //policy type
+	}
+	log.Infof("Attaching Policy: %+v to endptgp: %+v", srtePol, 300)
+
+	// Attach the policy
+	err = ofnetMaster.AttachPolicy(srtePol)
+	if err != nil {
+		t.Errorf("Error attaching policy {%+v}. Err: %v", srtePol, err)
+		return
+	}
+
+	slaRule := &OfnetPolicyRule{
+		RuleId:           "slaRule",
+		Priority:         100,
+		SrcEndpointGroup: 300,
+		Action:           "sla",
+		Sla:			   3,
+	}
+
+	log.Infof("Adding rule: %+v", slaRule)
+
+	// Add the policy
+	err = ofnetMaster.AddRule(slaRule)
+	if err != nil {
+		t.Errorf("Error installing slaRule {%+v}. Err: %v", slaRule, err)
+		return
+	}
+
 	// Get all the flows
 	flowList, err := ofctlFlowDump(brName)
 	if err != nil {
@@ -175,6 +206,15 @@ func TestPolicyAddDelete(t *testing.T) {
 
 	log.Infof("Found udp rule %s on ovs %s", udpFlowMatch, brName)
 
+	// verify mpls sla rule flow
+	slaFlowMatch := fmt.Sprintf("priority=100,ip,metadata=0x12c0000/0x7fff0000,vlan_tci=0x1000/0x1000 actions=pop_vlan,push_mpls:0x8847,set_field:3->mpls_label,goto_table:")
+	if !ofctlFlowMatch(flowList, POLICY_TBL_ID, slaFlowMatch) {
+		t.Errorf("Could not find the flow %s on ovs %s", slaFlowMatch, brName)
+		return
+	}
+
+	log.Infof("Found mpls sla rule %s on ovs %s", slaFlowMatch, brName)
+
 	// Delete policies
 	err = ofnetMaster.DelRule(tcpRule)
 	if err != nil {
@@ -184,6 +224,17 @@ func TestPolicyAddDelete(t *testing.T) {
 	err = ofnetMaster.DelRule(udpRule)
 	if err != nil {
 		t.Errorf("Error deleting udpRule {%+v}. Err: %v", udpRule, err)
+		return
+	}
+	err = ofnetMaster.DelRule(slaRule)
+	if err != nil {
+		t.Errorf("Error deleting udpRule {%+v}. Err: %v", udpRule, err)
+		return
+	}
+	// Dettach the policy
+	err = ofnetMaster.DetachPolicy(srtePol.PolicyId)
+	if err != nil {
+		t.Errorf("Error detaching policy {%+v}. Err: %v", srtePol, err)
 		return
 	}
 	err = ofnetAgent.RemoveLocalEndpoint(endpoint.PortNo)

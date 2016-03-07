@@ -89,7 +89,8 @@ const (
 	POLICY_TBL_ID = 4
 	SRV_PROXY_SNAT_TBL_ID = 5
 	IP_TBL_ID = 6
-	MAC_DEST_TBL_ID = 7
+    SRMPLS_TBL_ID = 7  //SRTE - mpls table
+	MAC_DEST_TBL_ID = 8
 )
 
 // Create a new Ofnet agent and initialize it
