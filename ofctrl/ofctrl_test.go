@@ -281,7 +281,7 @@ func TestCreateDeleteFlow(t *testing.T) {
 		Priority:     100,
 		Ethertype:    0x0800,
 		VlanId:       vlan,
-		VlanIdMask:   *vlan,
+		VlanIdMask:   &vlan,
 		Metadata:     &md,
 		MetadataMask: &mdmask,
 	})
@@ -318,7 +318,7 @@ func TestCreateDeleteFlow(t *testing.T) {
 		Priority:     1,
 		Ethertype:    0x0800,
 		VlanId:       vlan,
-		VlanIdMask:   *vlan,
+		VlanIdMask:   &vlan,
 		Metadata:     &md,
 		MetadataMask: &mdmask,
 	})
