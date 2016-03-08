@@ -379,7 +379,7 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 			Priority: FLOW_MATCH_PRIORITY,
 			Ethertype:    0x0800,
 			VlanId:      t,
-			VlanIdMask:  true,
+			VlanIdMask:  &t,
 			Metadata:     md,
 			MetadataMask: mdm,
 		})

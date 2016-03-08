@@ -35,7 +35,7 @@ type FlowMatch struct {
 	MacSaMask    *net.HardwareAddr // Mac source mask
 	Ethertype    uint16            // Ethertype
 	VlanId       uint16            // vlan id
-	VlanIdMask	 bool 			   // vlan mask -SRTE
+	VlanIdMask	 *uint16 			   // vlan mask -SRTE
 	MplsLabel    uint32		   	   // Mpls Label  - SRTE
 	MplsBos      uint8		   	   // Mpls Bos  - SRTE
 	IpSa         *net.IP
@@ -143,11 +143,11 @@ func (self *Flow) xlateMatch() openflow13.Match {
 
 	// Handle Vlan id
 	if self.Match.VlanId != 0  {
-		if self.Match.VlanIdMask == false {
-			vidField := openflow13.NewVlanIdField(self.Match.VlanId, false)
+		if self.Match.VlanIdMask != nil {
+			vidField := openflow13.NewVlanIdField(self.Match.VlanId, self.Match.VlanIdMask )
 			ofMatch.AddField(*vidField)
 		} else {
-			vidField := openflow13.NewVlanIdField(self.Match.VlanId, true)
+			vidField := openflow13.NewVlanIdField(self.Match.VlanId, nil )
 			ofMatch.AddField(*vidField)
 		}
 	}
@@ -297,7 +297,7 @@ func (self *Flow) installFlowActions(flowMod *openflow13.FlowMod,
 			pushVlanAction := openflow13.NewActionPushVlan(0x8100)
 
 			// Set Outer vlan tag field
-			vlanField := openflow13.NewVlanIdField(flowAction.vlanId, false)
+			vlanField := openflow13.NewVlanIdField(flowAction.vlanId, nil)
 			setVlanAction := openflow13.NewActionSetField(*vlanField)
 
 			// Prepend push vlan & setvlan actions to existing instruction
@@ -339,7 +339,7 @@ func (self *Flow) installFlowActions(flowMod *openflow13.FlowMod,
 			pushVlanAction := openflow13.NewActionPushVlan(0x8100)
 
 			// Set Outer vlan tag field
-			vlanField := openflow13.NewVlanIdField(flowAction.vlanId, false)
+			vlanField := openflow13.NewVlanIdField(flowAction.vlanId, nil)
 			setVlanAction := openflow13.NewActionSetField(*vlanField)
 
 			// Prepend push vlan & setvlan actions to existing instruction
