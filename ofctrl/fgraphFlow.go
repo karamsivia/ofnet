@@ -38,6 +38,7 @@ type FlowMatch struct {
 	VlanIdMask	 *uint16 			   // vlan mask -SRTE
 	MplsLabel    uint32		   	   // Mpls Label  - SRTE
 	MplsBos      uint8		   	   // Mpls Bos  - SRTE
+	ArpOper      uint16            // ARP Oper type
 	IpSa         *net.IP
 	IpSaMask     *net.IP
 	IpDa         *net.IP
@@ -163,6 +164,12 @@ func (self *Flow) xlateMatch() openflow13.Match {
 	if self.Match.MplsBos != 0 {
 		mplsBosField := openflow13.NewMplsBosField(self.Match.MplsBos)
 		ofMatch.AddField(*mplsBosField)
+	}
+
+	// Handle ARP Oper type
+	if self.Match.ArpOper != 0 {
+		arpOperField := openflow13.NewArpOperField(self.Match.ArpOper)
+		ofMatch.AddField(*arpOperField)
 	}
 
 	// Handle IP Dst
