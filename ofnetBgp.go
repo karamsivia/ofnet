@@ -256,7 +256,7 @@ func (self *OfnetBgp) DeleteProtoNeighbor() error {
 	p.NeighborConfig.PeerAs = uint32(peer.Conf.PeerAs)
 	//FIX ME set ipv6 depending on peerip (for v6 BGP)
 	p.AfiSafis.AfiSafiList = []bgpconf.AfiSafi{
-		bgpconf.AfiSafi{AfiSafiName: "ipv4-unicast"}}
+		bgpconf.AfiSafi{AfiSafiName: "ipv4-labelled-unicast"}}
 	self.bgpServer.SetBmpConfig(bgpconf.BmpServers{
 		BmpServerList: []bgpconf.BmpServer{},
 	})
@@ -304,7 +304,7 @@ func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) err
 	p.NeighborConfig.PeerAs = uint32(peerAs)
 	//FIX ME set ipv6 depending on peerip (for v6 BGP)
 	p.AfiSafis.AfiSafiList = []bgpconf.AfiSafi{
-		bgpconf.AfiSafi{AfiSafiName: "ipv4-unicast"}}
+		bgpconf.AfiSafi{AfiSafiName: "ipv4-labelled-unicast"}}
 	self.bgpServer.SetBmpConfig(bgpconf.BmpServers{
 		BmpServerList: []bgpconf.BmpServer{},
 	})
@@ -698,6 +698,7 @@ func setDefaultGlobalConfigValues(bt *bgpconf.Global) error {
 
 	bt.AfiSafis.AfiSafiList = []bgpconf.AfiSafi{
 		bgpconf.AfiSafi{AfiSafiName: "ipv4-unicast"},
+		bgpconf.AfiSafi{AfiSafiName: "ipv4-labelled-unicast"},
 		bgpconf.AfiSafi{AfiSafiName: "ipv6-unicast"},
 		bgpconf.AfiSafi{AfiSafiName: "l3vpn-ipv4-unicast"},
 		bgpconf.AfiSafi{AfiSafiName: "l3vpn-ipv6-unicast"},
