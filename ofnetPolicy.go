@@ -161,6 +161,7 @@ func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 
 
 	// Add flow for TE policies - SRTE
+	/*`
 	for _, policy := range self.Policys {
 		log.Infof("Policy in self.Policys in endpt: %+v", policy)
 	 	if(policy.EndptgpID == endpoint.EndpointGroup) && ( policy.PolicyType == "TEPolicy") {
@@ -190,6 +191,7 @@ func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 			self.SrMplsFlow[endpoint.EndpointID] = srmplsFlow
 	 	}
 	 }
+	*/
 	return nil
 }
 
@@ -373,7 +375,7 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 	} else if rule.Action == "sla" {  //SRTE Rule action
 
 		log.Infof("SLA is : %+v", rule.Sla)
-
+		/*
 		var t uint16  = 0x1000
  		polFlow, err := self.policyTable.NewFlow(ofctrl.FlowMatch{
 			Priority: FLOW_MATCH_PRIORITY,
@@ -399,6 +401,7 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 			flow: polFlow,
 		}
 		self.Rules[rule.RuleId] = &pRule
+		*/
 		polFlow1, err := self.policyTable.NewFlow(ofctrl.FlowMatch{
                         Priority: FLOW_MATCH_PRIORITY,
                         Ethertype:    0x0800,
@@ -411,12 +414,17 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
                 }
 
                 //polFlow1.PushMpls(rule.Sla)
-		polFlow1.SetMetadata(0x2100, 0x2100)
+		polFlow1.SetMetadata(rule.Sla,rule.Sla)
                 err = polFlow1.Next(self.srmplsTable)
                 if err != nil {
                         log.Errorf("Error installing flow {%+v}. Err: %v", polFlow1, err)
                         return err
                 }
+		pRule := PolicyRule{
+                        rule: rule,
+                        flow: polFlow1,
+                }
+                self.Rules[rule.RuleId] = &pRule
 		
 		
 	} else {

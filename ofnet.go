@@ -87,7 +87,7 @@ type OfnetProto interface {
 	StopProtoServer() error
 
 	//Add a Protocol Neighbor
-	AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) error
+	AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo, localas string) error
 
 	//Delete a Protocol Neighbor
 	DeleteProtoNeighbor() error
@@ -145,7 +145,7 @@ type OfnetPolicyRule struct {
 	DstPort          uint16 // destination port
 	TcpFlags         string // TCP flags to match: syn || syn,ack || ack || syn,!ack || !syn,ack;
 	Action           string // rule action: 'accept' or 'deny'
-	Sla				 uint32  //SRTE sla
+	Sla				 uint64  //SRTE sla
 }
 
 type OfnetPolicy struct { // SRTE - policy
