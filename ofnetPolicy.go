@@ -180,8 +180,8 @@ func (self *PolicyAgent) AddEndpoint(endpoint *OfnetEndpoint) error {
 				log.Errorf("Error creating srmpls flow for endpoint %+v. Err: %v", endpoint, err)
 				return err
 			}
-			srmplsFlow.PopMplsPushVlan(endpoint.Vlan)
-			macDestTable := self.ofSwitch.GetTable(MAC_DEST_TBL_ID)
+			srmplsFlow.PopMpls()
+			macDestTable := self.ofSwitch.GetTable(IP_TBL_ID)
 			err = srmplsFlow.Next(macDestTable)
 			if err != nil {
 				log.Errorf("Error installing srmpls entry. Err: %v", err)
@@ -399,6 +399,24 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 			flow: polFlow,
 		}
 		self.Rules[rule.RuleId] = &pRule
+		polFlow1, err := self.policyTable.NewFlow(ofctrl.FlowMatch{
+                        Priority: FLOW_MATCH_PRIORITY,
+                        Ethertype:    0x0800,
+                        Metadata:     md,
+                        MetadataMask: mdm,
+                })
+                if err != nil {
+                        log.Errorf("Error creating policy flow {%+v}. Err: %v", polFlow1, err)
+                        return err
+                }
+
+                //polFlow1.PushMpls(rule.Sla)
+		polFlow1.SetMetadata(0x2100, 0x2100)
+                err = polFlow1.Next(self.srmplsTable)
+                if err != nil {
+                        log.Errorf("Error installing flow {%+v}. Err: %v", polFlow1, err)
+                        return err
+                }
 		
 		
 	} else {

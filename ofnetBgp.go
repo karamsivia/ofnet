@@ -101,6 +101,7 @@ func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 	self.routerIP, len, err = ParseCIDR(routerInfo.RouterIP)
 	as, _ := strconv.Atoi(routerInfo.As)
 	self.myBgpAs = uint32(as)
+	log.Infof("Starting the Bgp Server for AS %v", self.myBgpAs)
 
 	self.modRibCh = make(chan *api.Path, 16)
 	self.advPathCh = make(chan *api.Path, 16)
@@ -179,8 +180,8 @@ func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 	//Add bgp router id as well
 	bgpGlobalCfg := &bgpconf.Global{}
 	setDefaultGlobalConfigValues(bgpGlobalCfg)
-	bgpGlobalCfg.GlobalConfig.RouterId = net.ParseIP(self.routerIP)
-	bgpGlobalCfg.GlobalConfig.As = self.myBgpAs
+	bgpGlobalCfg.Config.RouterId = self.routerIP
+	bgpGlobalCfg.Config.As = self.myBgpAs
 	self.bgpServer.SetGlobalType(*bgpGlobalCfg)
 
 	self.advPathCh <- path
@@ -251,15 +252,13 @@ func (self *OfnetBgp) DeleteProtoNeighbor() error {
 	p := bgpconf.Neighbor{}
 	setNeighborConfigValues(&p)
 
-	p.NeighborAddress = net.ParseIP(peer.Conf.NeighborAddress)
-	p.NeighborConfig.NeighborAddress = net.ParseIP(peer.Conf.NeighborAddress)
-	p.NeighborConfig.PeerAs = uint32(peer.Conf.PeerAs)
+	p.NeighborAddress = peer.Conf.NeighborAddress
+	p.Config.NeighborAddress =peer.Conf.NeighborAddress
+	p.Config.PeerAs = uint32(peer.Conf.PeerAs)
 	//FIX ME set ipv6 depending on peerip (for v6 BGP)
-	p.AfiSafis.AfiSafiList = []bgpconf.AfiSafi{
+	p.AfiSafis = []bgpconf.AfiSafi{
 		bgpconf.AfiSafi{AfiSafiName: "ipv4-labelled-unicast"}}
-	self.bgpServer.SetBmpConfig(bgpconf.BmpServers{
-		BmpServerList: []bgpconf.BmpServer{},
-	})
+	self.bgpServer.SetBmpConfig([]bgpconf.BmpServer{})
 
 	self.bgpServer.PeerDelete(p)
 
@@ -288,31 +287,32 @@ func (self *OfnetBgp) DeleteProtoNeighbor() error {
 }
 
 //AddProtoNeighbor adds bgp neighbor
-func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) error {
+func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo, localas string) error {
 
 	<-self.start
 
 	log.Infof("Received AddProtoNeighbor to Add bgp neighbor %v", neighborInfo.NeighborIP)
 
 	var policyConfig bgpconf.RoutingPolicy
-
+	localAs, _ := strconv.Atoi(localas)
 	peerAs, _ := strconv.Atoi(neighborInfo.As)
 	p := &bgpconf.Neighbor{}
 	setNeighborConfigValues(p)
-	p.NeighborAddress = net.ParseIP(neighborInfo.NeighborIP)
-	p.NeighborConfig.NeighborAddress = net.ParseIP(neighborInfo.NeighborIP)
-	p.NeighborConfig.PeerAs = uint32(peerAs)
+	p.NeighborAddress = neighborInfo.NeighborIP
+	log.Infof("p.NeighborAddress %v is added", p.NeighborAddress)
+	p.Config.NeighborAddress = neighborInfo.NeighborIP
+	log.Infof("p.Config.NeighborAddress %v is added", p.Config.NeighborAddress)
+	p.Config.PeerAs = uint32(peerAs)
+	p.Config.LocalAs = uint32(localAs)
 	//FIX ME set ipv6 depending on peerip (for v6 BGP)
-	p.AfiSafis.AfiSafiList = []bgpconf.AfiSafi{
+	p.AfiSafis = []bgpconf.AfiSafi{
 		bgpconf.AfiSafi{AfiSafiName: "ipv4-labelled-unicast"}}
-	self.bgpServer.SetBmpConfig(bgpconf.BmpServers{
-		BmpServerList: []bgpconf.BmpServer{},
-	})
+	self.bgpServer.SetBmpConfig([]bgpconf.BmpServer{})
 
 	self.bgpServer.PeerAdd(*p)
-	self.bgpServer.SetPolicy(policyConfig)
+	self.bgpServer.SetRoutingPolicy(policyConfig)
 
-	log.Infof("Peer %v is added", p.NeighborConfig.NeighborAddress)
+	log.Infof("Peer %v is added", p.Config.NeighborAddress)
 
 	epreg := &OfnetEndpoint{
 		EndpointID:   neighborInfo.NeighborIP,
@@ -345,6 +345,7 @@ func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo) err
 		}
 		self.AddLocalProtoRoute(path)
 	}
+	log.Infof("DONE - Received AddProtoNeighbor to Add bgp neighbor %v", neighborInfo.NeighborIP)
 	return nil
 }
 
@@ -360,7 +361,7 @@ func (self *OfnetBgp) GetRouterInfo() *OfnetProtoRouterInfo {
 
 //AddLocalProtoRoute is used to add local endpoint to the protocol RIB
 func (self *OfnetBgp) AddLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error {
-
+	log.Infof("Received AddLocalProtoRoute to add local endpoint to protocol RIB: %v", pathInfo)
 	if self.routerIP == "" {
 		//ignoring populating to the bgp rib because
 		//Bgp is not configured.
@@ -368,9 +369,14 @@ func (self *OfnetBgp) AddLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error {
 	}
 
 	log.Infof("Received AddLocalProtoRoute to add local endpoint to protocol RIB: %v", pathInfo)
+	 log.Infof("Received AddLocalProtoRoute self.myBgpAs: %v", self.myBgpAs )
+        aspathParam := []bgp.AsPathParamInterface{bgp.NewAs4PathParam(2, []uint32{self.myBgpAs})}
+        log.Infof("Received AddLocalProtoRoute aspathParam: %v", aspathParam)
+        aspath,_ := bgp.NewPathAttributeAsPath(aspathParam).Serialize()
 
 	path := &api.Path{
 		Pattrs: make([][]byte, 0),
+	//	SourceAsn: self.myBgpAs ,
 	}
 
 	// form the path structure with appropriate path attributes
@@ -378,19 +384,32 @@ func (self *OfnetBgp) AddLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error {
 	path.Nlri, _ = nlri.Serialize()
 	origin, _ := bgp.NewPathAttributeOrigin(bgp.BGP_ORIGIN_ATTR_TYPE_EGP).Serialize()
 	path.Pattrs = append(path.Pattrs, origin)
-	aspathParam := []bgp.AsPathParamInterface{bgp.NewAs4PathParam(2, []uint32{self.myBgpAs})}
-	aspath, _ := bgp.NewPathAttributeAsPath(aspathParam).Serialize()
+//	log.Infof("Received AddLocalProtoRoute self.myBgpAs: %v", self.myBgpAs )
+//	aspathParam := []bgp.AsPathParamInterface{bgp.NewAs4PathParam(2, []uint32{self.myBgpAs})}
+//	log.Infof("Received AddLocalProtoRoute aspathParam: %v", aspathParam)
+//	aspath,_ := bgp.NewPathAttributeAsPath(aspathParam).Serialize()
 	path.Pattrs = append(path.Pattrs, aspath)
-	n, _ := bgp.NewPathAttributeNextHop(pathInfo.nextHopIP).Serialize()
-	path.Pattrs = append(path.Pattrs, n)
+	log.Infof("Received AddLocalProtoRoute aspath: %v", aspath)
+	//n, _ := bgp.NewPathAttributeNextHop(pathInfo.nextHopIP).Serialize()
+	//NewLabeledVPNIPAddrPrefix
+	mpls, err := bgp.ParseMPLSLabelStack("3")
+	if err != nil {
+		return nil
+	}
+	var nlri2 bgp.AddrPrefixInterface
+	nlri2 = bgp.NewLabeledIPAddrPrefix(32, pathInfo.localEpIP, *mpls)	
+	mpreach,_ := bgp.NewPathAttributeMpReachNLRI(pathInfo.nextHopIP, []bgp.AddrPrefixInterface{nlri2}).Serialize()
+	log.Infof("Received AddLocalProtoRoute nlri2: %v, mpreach: %v", nlri2, mpreach )
+	path.Pattrs = append(path.Pattrs, mpreach)
+	//path.Pattrs = append(path.Pattrs, n)
 
 	name := ""
-
-	arg := &api.ModPathArguments{
+	arg := &api.ModPathsArguments{
 		Resource: api.Resource_GLOBAL,
 		Name:     name,
 		Paths:    []*api.Path{path},
 	}
+	log.Infof("Received AddLocalProtoRoute arg: %v", arg.Paths)
 
 	//send arguement stream
 	client := api.NewGobgpApiClient(self.cc)
@@ -399,11 +418,12 @@ func (self *OfnetBgp) AddLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error {
 		return nil
 	}
 
-	stream, err := client.ModPath(context.Background())
+	stream,err := client.ModPaths(context.Background())
 	if err != nil {
 		log.Errorf("Fail to enforce Modpath", err)
 		return err
 	}
+	
 	err = stream.Send(arg)
 	if err != nil {
 		log.Errorf("Failed to send strean", err)
@@ -418,6 +438,7 @@ func (self *OfnetBgp) AddLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error {
 	if res.Code != api.Error_SUCCESS {
 		return fmt.Errorf("error: code: %d, msg: %s", res.Code, res.Msg)
 	}
+	log.Infof("Done- AddLocalProtoRoute to add local endpoint to protocol RIB: %v", pathInfo)
 	return nil
 }
 
@@ -442,11 +463,11 @@ func (self *OfnetBgp) DeleteLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error
 	path.Pattrs = append(path.Pattrs, n)
 	path.IsWithdraw = true
 	name := ""
-
-	arg := &api.ModPathArguments{
+	paths := []*api.Path{path}
+        arg := &api.ModPathsArguments{	
 		Resource: api.Resource_GLOBAL,
 		Name:     name,
-		Paths:    []*api.Path{path},
+		Paths:    paths,
 	}
 
 	//send arguement stream
@@ -456,12 +477,13 @@ func (self *OfnetBgp) DeleteLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error
 		return nil
 	}
 
-	stream, err := client.ModPath(context.Background())
+	stream,err := client.ModPaths(context.Background())
+
 	if err != nil {
 		log.Errorf("Fail to enforce Modpathi", err)
 		return err
 	}
-
+	
 	err = stream.Send(arg)
 	if err != nil {
 		log.Errorf("Failed to send strean", err)
@@ -478,6 +500,7 @@ func (self *OfnetBgp) DeleteLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error
 	if res.Code != api.Error_SUCCESS {
 		return fmt.Errorf("error: code: %d, msg: %s", res.Code, res.Msg)
 	}
+
 	return nil
 }
 
@@ -491,7 +514,7 @@ func (self *OfnetBgp) monitorBest() {
 	}
 	arg := &api.Arguments{
 		Resource: api.Resource_GLOBAL,
-		Rf:       uint32(bgp.RF_IPv4_UC),
+		Family:       uint32(bgp.RF_IPv4_MPLS),
 	}
 
 	stream, err := client.MonitorBestChanged(context.Background(), arg)
@@ -614,7 +637,9 @@ func (self *OfnetBgp) modRib(path *api.Path) error {
 	endpointIPNet, _ := netlink.ParseIPNet(nlri.String())
 	log.Infof("Bgp Rib Received endpoint update for %v , with nexthop %v",
 		endpointIPNet, nextHop)
-
+	if( endpointIPNet == nil ){
+		return nil
+	}
 	//check if bgp published a route local to the host
 	epid := endpointIPNet.IP.Mask(endpointIPNet.Mask).String()
 
@@ -675,7 +700,7 @@ func (self *OfnetBgp) modRib(path *api.Path) error {
 
 //createBgpServer creates and starts a bgp server and correspoinding grpc server
 func createBgpServer() (bgpServer *bgpserver.BgpServer, grpcServer *bgpserver.Server) {
-	bgpServer = bgpserver.NewBgpServer(bgp.BGP_PORT)
+	bgpServer = bgpserver.NewBgpServer()
 	if bgpServer == nil {
 		log.Errorf("Error creating bgp server")
 		return
@@ -683,7 +708,7 @@ func createBgpServer() (bgpServer *bgpserver.BgpServer, grpcServer *bgpserver.Se
 		go bgpServer.Serve()
 	}
 	// start grpc Server
-	grpcServer = bgpserver.NewGrpcServer(bgpserver.GRPC_PORT, bgpServer.GrpcReqCh)
+	grpcServer = bgpserver.NewGrpcServer(8080, bgpServer.GrpcReqCh)
 	if grpcServer == nil {
 		log.Errorf("Error creating bgp server")
 		return
@@ -696,9 +721,9 @@ func createBgpServer() (bgpServer *bgpserver.BgpServer, grpcServer *bgpserver.Se
 //setDefaultGlobalConfigValues sets the default global configs for bgp
 func setDefaultGlobalConfigValues(bt *bgpconf.Global) error {
 
-	bt.AfiSafis.AfiSafiList = []bgpconf.AfiSafi{
-		bgpconf.AfiSafi{AfiSafiName: "ipv4-unicast"},
+	bt.AfiSafis = []bgpconf.AfiSafi{
 		bgpconf.AfiSafi{AfiSafiName: "ipv4-labelled-unicast"},
+		bgpconf.AfiSafi{AfiSafiName: "ipv4-unicast"},
 		bgpconf.AfiSafi{AfiSafiName: "ipv6-unicast"},
 		bgpconf.AfiSafi{AfiSafiName: "l3vpn-ipv4-unicast"},
 		bgpconf.AfiSafi{AfiSafiName: "l3vpn-ipv6-unicast"},
@@ -719,14 +744,14 @@ func setDefaultGlobalConfigValues(bt *bgpconf.Global) error {
 //setNeighborConfigValues sets the default neighbor configs for bgp
 func setNeighborConfigValues(neighbor *bgpconf.Neighbor) error {
 
-	neighbor.Timers.TimersConfig.ConnectRetry = float64(bgpconf.DEFAULT_CONNECT_RETRY)
-	neighbor.Timers.TimersConfig.HoldTime = float64(bgpconf.DEFAULT_HOLDTIME)
-	neighbor.Timers.TimersConfig.KeepaliveInterval = float64(bgpconf.DEFAULT_HOLDTIME / 3)
-	neighbor.Timers.TimersConfig.IdleHoldTimeAfterReset =
+	neighbor.Timers.Config.ConnectRetry = float64(bgpconf.DEFAULT_CONNECT_RETRY)
+	neighbor.Timers.Config.HoldTime = float64(bgpconf.DEFAULT_HOLDTIME)
+	neighbor.Timers.Config.KeepaliveInterval = float64(bgpconf.DEFAULT_HOLDTIME / 3)
+	neighbor.Timers.Config.IdleHoldTimeAfterReset =
 		float64(bgpconf.DEFAULT_IDLE_HOLDTIME_AFTER_RESET)
 	//FIX ME need to check with global peer to set internal or external
-	neighbor.NeighborConfig.PeerType = bgpconf.PEER_TYPE_EXTERNAL
-	neighbor.Transport.TransportConfig.PassiveMode = false
+	neighbor.Config.PeerType = bgpconf.PEER_TYPE_EXTERNAL
+	neighbor.Transport.Config.PassiveMode = false
 	return nil
 }
 

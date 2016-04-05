@@ -88,8 +88,8 @@ const (
 	DST_GRP_TBL_ID        = 3
 	POLICY_TBL_ID         = 4
 	SRV_PROXY_SNAT_TBL_ID = 5
-	IP_TBL_ID = 6
-    SRMPLS_TBL_ID = 7  //SRTE - mpls table
+	IP_TBL_ID = 7
+    SRMPLS_TBL_ID = 6  //SRTE - mpls table
 	MAC_DEST_TBL_ID = 8
 )
 
@@ -610,7 +610,7 @@ func (self *OfnetAgent) AddBgp(routerIP string, As string, neighborAs string, pe
 
 	go self.protopath.StartProtoServer(routerInfo)
 
-	err := self.protopath.AddProtoNeighbor(neighborInfo)
+	err := self.protopath.AddProtoNeighbor(neighborInfo, As)
 	if err != nil {
 		log.Errorf("Error adding protocol neighbor")
 		return err
