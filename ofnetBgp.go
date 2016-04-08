@@ -107,7 +107,7 @@ func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 	self.advPathCh = make(chan *api.Path, 16)
 
 	timeout := grpc.WithTimeout(time.Second)
-	conn, err := grpc.Dial("127.0.0.1:8080", timeout, grpc.WithBlock(), grpc.WithInsecure())
+	conn, err := grpc.Dial("127.0.0.1:179", timeout, grpc.WithBlock(), grpc.WithInsecure())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -708,7 +708,7 @@ func createBgpServer() (bgpServer *bgpserver.BgpServer, grpcServer *bgpserver.Se
 		go bgpServer.Serve()
 	}
 	// start grpc Server
-	grpcServer = bgpserver.NewGrpcServer(8080, bgpServer.GrpcReqCh)
+	grpcServer = bgpserver.NewGrpcServer(179, bgpServer.GrpcReqCh)
 	if grpcServer == nil {
 		log.Errorf("Error creating bgp server")
 		return
