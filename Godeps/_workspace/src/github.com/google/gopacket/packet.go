@@ -15,6 +15,7 @@ import (
 	"os"
 	"reflect"
 	"runtime/debug"
+	"strings"
 	"time"
 )
 
@@ -28,6 +29,8 @@ type CaptureInfo struct {
 	// Length is the size of the original packet.  Should always be >=
 	// CaptureLength.
 	Length int
+	// InterfaceIndex
+	InterfaceIndex int
 }
 
 // PacketMetadata contains metadata for a packet.
@@ -203,7 +206,7 @@ func (p *packet) recoverDecodeError() {
 // Payload layer and it's internal 'data' field, which contains a large byte
 // array that would really mess up formatting.
 func LayerString(l Layer) string {
-	return fmt.Sprintf("%v\t%s", l.LayerType(), layerString(l, false, false))
+	return fmt.Sprintf("%v\t%s", l.LayerType(), layerString(reflect.ValueOf(l), false, false))
 }
 
 // Dumper dumps verbose information on a value.  If a layer type implements
@@ -241,20 +244,21 @@ func LayerDump(l Layer) string {
 //   writeSpace:  if we've already written a value in a struct, and need to
 //     write a space before writing more.  This happens when we write various
 //     anonymous values, and need to keep writing more.
-func layerString(i interface{}, anonymous bool, writeSpace bool) string {
+func layerString(v reflect.Value, anonymous bool, writeSpace bool) string {
 	// Let String() functions take precedence.
-	if s, ok := i.(fmt.Stringer); ok {
-		return s.String()
+	if v.CanInterface() {
+		if s, ok := v.Interface().(fmt.Stringer); ok {
+			return s.String()
+		}
 	}
 	// Reflect, and spit out all the exported fields as key=value.
-	v := reflect.ValueOf(i)
 	switch v.Type().Kind() {
 	case reflect.Interface, reflect.Ptr:
 		if v.IsNil() {
 			return "nil"
 		}
 		r := v.Elem()
-		return layerString(r.Interface(), anonymous, writeSpace)
+		return layerString(r, anonymous, writeSpace)
 	case reflect.Struct:
 		var b bytes.Buffer
 		typ := v.Type()
@@ -266,7 +270,7 @@ func layerString(i interface{}, anonymous bool, writeSpace bool) string {
 			ftype := typ.Field(i)
 			f := v.Field(i)
 			if ftype.Anonymous {
-				anonStr := layerString(f.Interface(), true, writeSpace)
+				anonStr := layerString(f, true, writeSpace)
 				writeSpace = writeSpace || anonStr != ""
 				b.WriteString(anonStr)
 			} else if ftype.PkgPath == "" { // exported
@@ -274,7 +278,7 @@ func layerString(i interface{}, anonymous bool, writeSpace bool) string {
 					b.WriteByte(' ')
 				}
 				writeSpace = true
-				fmt.Fprintf(&b, "%s=%s", typ.Field(i).Name, layerString(f.Interface(), false, writeSpace))
+				fmt.Fprintf(&b, "%s=%s", typ.Field(i).Name, layerString(f, false, writeSpace))
 			}
 		}
 		if !anonymous {
@@ -291,13 +295,98 @@ func layerString(i interface{}, anonymous bool, writeSpace bool) string {
 				if j != 0 {
 					b.WriteString(", ")
 				}
-				b.WriteString(layerString(v.Index(j).Interface(), false, false))
+				b.WriteString(layerString(v.Index(j), false, false))
 			}
 		}
 		b.WriteByte(']')
 		return b.String()
 	}
 	return fmt.Sprintf("%v", v.Interface())
+}
+
+const (
+	longBytesLength = 128
+)
+
+// LongBytesGoString returns a string representation of the byte slice shortened
+// using the format '<type>{<truncated slice> ... (<n> bytes)}' if it
+// exceeds a predetermined length. Can be used to avoid filling the display with
+// very long byte strings.
+func LongBytesGoString(buf []byte) string {
+	if len(buf) < longBytesLength {
+		return fmt.Sprintf("%#v", buf)
+	}
+	s := fmt.Sprintf("%#v", buf[:longBytesLength-1])
+	s = strings.TrimSuffix(s, "}")
+	return fmt.Sprintf("%s ... (%d bytes)}", s, len(buf))
+}
+
+func baseLayerString(value reflect.Value) string {
+	t := value.Type()
+	content := value.Field(0)
+	c := make([]byte, content.Len())
+	for i := range c {
+		c[i] = byte(content.Index(i).Uint())
+	}
+	payload := value.Field(1)
+	p := make([]byte, payload.Len())
+	for i := range p {
+		p[i] = byte(payload.Index(i).Uint())
+	}
+	return fmt.Sprintf("%s{Contents:%s, Payload:%s}", t.String(),
+		LongBytesGoString(c),
+		LongBytesGoString(p))
+}
+
+func layerGoString(i interface{}, b *bytes.Buffer) {
+	if s, ok := i.(fmt.GoStringer); ok {
+		b.WriteString(s.GoString())
+		return
+	}
+
+	var v reflect.Value
+	var ok bool
+	if v, ok = i.(reflect.Value); !ok {
+		v = reflect.ValueOf(i)
+	}
+	switch v.Kind() {
+	case reflect.Ptr, reflect.Interface:
+		if v.Kind() == reflect.Ptr {
+			b.WriteByte('&')
+		}
+		layerGoString(v.Elem().Interface(), b)
+	case reflect.Struct:
+		t := v.Type()
+		b.WriteString(t.String())
+		b.WriteByte('{')
+		for i := 0; i < v.NumField(); i += 1 {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			if t.Field(i).Name == "BaseLayer" {
+				fmt.Fprintf(b, "BaseLayer:%s", baseLayerString(v.Field(i)))
+			} else if v.Field(i).Kind() == reflect.Struct {
+				fmt.Fprintf(b, "%s:", t.Field(i).Name)
+				layerGoString(v.Field(i), b)
+			} else if v.Field(i).Kind() == reflect.Ptr {
+				b.WriteByte('&')
+				layerGoString(v.Field(i), b)
+			} else {
+				fmt.Fprintf(b, "%s:%#v", t.Field(i).Name, v.Field(i))
+			}
+		}
+		b.WriteByte('}')
+	default:
+		fmt.Fprintf(b, "%#v", i)
+	}
+}
+
+// LayerGoString returns a representation of the layer in Go syntax,
+// taking care to shorten "very long" BaseLayer byte slices
+func LayerGoString(l Layer) string {
+	b := new(bytes.Buffer)
+	layerGoString(l, b)
+	return b.String()
 }
 
 func (p *packet) packetString() string {
