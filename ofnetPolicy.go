@@ -22,7 +22,7 @@ import (
 	"reflect"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/ofnet/ofctrl"
+	"github.com/karamsivia/ofnet/ofctrl"
 )
 
 // This file has security policy rule implementation

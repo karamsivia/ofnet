@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/contiv/ofnet/rpcHub"
+	"github.com/karamsivia/ofnet/rpcHub"
 
 	log "github.com/Sirupsen/logrus"
 )

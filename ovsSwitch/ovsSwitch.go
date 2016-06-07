@@ -20,8 +20,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/contiv/ofnet"
-	"github.com/contiv/ofnet/ovsdbDriver"
+	"github.com/karamsivia/ofnet"
+	"github.com/karamsivia/ofnet/ovsdbDriver"
 
 	log "github.com/Sirupsen/logrus"
 )

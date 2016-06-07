@@ -22,10 +22,10 @@ import (
 	"testing"
 	"github.com/shaleman/libOpenflow/protocol"
 	"github.com/shaleman/libOpenflow/openflow13"
-	"github.com/contiv/ofnet/ofctrl"
+	"github.com/karamsivia/ofnet/ofctrl"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/ofnet/ovsdbDriver"
+	"github.com/karamsivia/ofnet/ovsdbDriver"
 )
 func addEP(oa *OfnetAgent, portNo uint32, ipAddr string, t *testing.T) {
 	macStr := fmt.Sprintf("00:01:02:03:04:%d", portNo)

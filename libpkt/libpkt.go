@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/contiv/ofnet/ovsdbDriver"
+	"github.com/karamsivia/ofnet/ovsdbDriver"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"

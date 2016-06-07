@@ -21,7 +21,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/contiv/ofnet/ofctrl"
+	"github.com/karamsivia/ofnet/ofctrl"
 )
 
 // Interface implemented by each datapath
