@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/karamsivia/ofnet/ovsdbDriver"
+	"github.com/contiv/ofnet/ovsdbDriver"
 )
 
 func TestPolicyAddDelete(t *testing.T) {
