@@ -24,7 +24,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/karamsivia/ofnet/ovsdbDriver"
+	"github.com/contiv/ofnet/ovsdbDriver"
 )
 
 type OfActor struct {

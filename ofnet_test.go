@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/karamsivia/ofnet/ovsdbDriver"
+	"github.com/contiv/ofnet/ovsdbDriver"
 
 	log "github.com/Sirupsen/logrus"
 	api "github.com/osrg/gobgp/api"
