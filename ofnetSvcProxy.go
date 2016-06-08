@@ -22,10 +22,10 @@ import (
 	"github.com/shaleman/libOpenflow/protocol"
 	"github.com/shaleman/libOpenflow/openflow13"
 	"sync"
-	"github.com/karamsivia/ofnet/pqueue"
+	"github.com/contiv/ofnet/pqueue"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/karamsivia/ofnet/ofctrl"
+	"github.com/contiv/ofnet/ofctrl"
 )
 
 // service proxy implementation

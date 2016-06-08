@@ -31,9 +31,9 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/karamsivia/ofnet/ofctrl"
-	"github.com/karamsivia/ofnet/ovsdbDriver"
-	"github.com/karamsivia/ofnet/rpcHub"
+	"github.com/contiv/ofnet/ofctrl"
+	"github.com/contiv/ofnet/ovsdbDriver"
+	"github.com/contiv/ofnet/rpcHub"
 	"github.com/jainvipin/bitset"
 )
 
