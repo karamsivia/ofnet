@@ -143,53 +143,53 @@
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/api",
-			"Comment": "v1.8-8-gc96b6d1",
-			"Rev": "c96b6d119849677aa8db8298a412f7ff501b879a"
+			"Comment": "v1.8-9-g50bf0d3",
+			"Rev": "50bf0d34d31c8f745e58b0f172c86fb617b92bf8"
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/config",
-			"Comment": "v1.8-8-gc96b6d1",
-			"Rev": "c96b6d119849677aa8db8298a412f7ff501b879a"
+			"Comment": "v1.8-9-g50bf0d3",
+			"Rev": "50bf0d34d31c8f745e58b0f172c86fb617b92bf8"
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/packet",
-			"Comment": "v1.8-8-gc96b6d1",
-			"Rev": "c96b6d119849677aa8db8298a412f7ff501b879a"
+			"Comment": "v1.8-9-g50bf0d3",
+			"Rev": "50bf0d34d31c8f745e58b0f172c86fb617b92bf8"
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/packet/bgp",
-			"Comment": "v1.8-8-gc96b6d1",
-			"Rev": "c96b6d119849677aa8db8298a412f7ff501b879a"
+			"Comment": "v1.8-9-g50bf0d3",
+			"Rev": "50bf0d34d31c8f745e58b0f172c86fb617b92bf8"
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/packet/bmp",
-			"Comment": "v1.8-8-gc96b6d1",
-			"Rev": "c96b6d119849677aa8db8298a412f7ff501b879a"
+			"Comment": "v1.8-9-g50bf0d3",
+			"Rev": "50bf0d34d31c8f745e58b0f172c86fb617b92bf8"
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/packet/mrt",
-			"Comment": "v1.8-8-gc96b6d1",
-			"Rev": "c96b6d119849677aa8db8298a412f7ff501b879a"
+			"Comment": "v1.8-9-g50bf0d3",
+			"Rev": "50bf0d34d31c8f745e58b0f172c86fb617b92bf8"
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/packet/rtr",
-			"Comment": "v1.8-8-gc96b6d1",
-			"Rev": "c96b6d119849677aa8db8298a412f7ff501b879a"
+			"Comment": "v1.8-9-g50bf0d3",
+			"Rev": "50bf0d34d31c8f745e58b0f172c86fb617b92bf8"
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/server",
-			"Comment": "v1.8-8-gc96b6d1",
-			"Rev": "c96b6d119849677aa8db8298a412f7ff501b879a"
+			"Comment": "v1.8-9-g50bf0d3",
+			"Rev": "50bf0d34d31c8f745e58b0f172c86fb617b92bf8"
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/table",
-			"Comment": "v1.8-8-gc96b6d1",
-			"Rev": "c96b6d119849677aa8db8298a412f7ff501b879a"
+			"Comment": "v1.8-9-g50bf0d3",
+			"Rev": "50bf0d34d31c8f745e58b0f172c86fb617b92bf8"
 		},
 		{
 			"ImportPath": "github.com/osrg/gobgp/zebra",
-			"Comment": "v1.8-8-gc96b6d1",
-			"Rev": "c96b6d119849677aa8db8298a412f7ff501b879a"
+			"Comment": "v1.8-9-g50bf0d3",
+			"Rev": "50bf0d34d31c8f745e58b0f172c86fb617b92bf8"
 		},
 		{
 			"ImportPath": "github.com/satori/go.uuid",
