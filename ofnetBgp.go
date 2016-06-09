@@ -195,7 +195,7 @@ func (self *OfnetBgp) StartProtoServer(routerInfo *OfnetProtoRouterInfo) error {
 	self.advPathCh <- path
 
 	//monitor route updates from peer
-	go self.monitorBest()
+	//go self.monitorBest()
 	//monitor peer state
 	go self.monitorPeer()
 	self.start <- true
@@ -250,30 +250,36 @@ func (self *OfnetBgp) DeleteProtoNeighbor() error {
 		log.Errorf("Invalid Gobgpapi client")
 		return errors.New("Error creating Gobgpapiclient")
 	}
-	arg := &api.Arguments{Name: self.myBgpPeer}
+	//arg := &api.Arguments{Name: self.myBgpPeer}
+	arg := &api.GetNeighborRequest{}
 
-	peer, err := client.GetNeighbor(context.Background(), arg)
+	r, err := client.GetNeighbor(context.Background(), arg)
 	if err != nil {
 		log.Errorf("GetNeighbor failed ", err)
 		return err
 	}
 	log.Infof("Deleteing Bgp peer from Bgp server")
-	p := bgpconf.Neighbor{}
-	setNeighborConfigValues(&p)
+	for _, peer := range r.Peers {
+		p := bgpconf.Neighbor{}
+		setNeighborConfigValues(&p)
+		p.Config.NeighborAddress =peer.Conf.NeighborAddress
+		p.Config.PeerAs = uint32(peer.Conf.PeerAs)
+		//FIX ME set ipv6 depending on peerip (for v6 BGP)
+		p.AfiSafis = []bgpconf.AfiSafi{
+			bgpconf.AfiSafi{
+				Config: bgpconf.AfiSafiConfig{
+					AfiSafiName: "ipv4-labelled-unicast",
+				},
+			},
+		}
+		self.bgpServer.SetBmpConfig([]bgpconf.BmpServer{})
 
-	p.NeighborAddress = peer.Conf.NeighborAddress
-	p.Config.NeighborAddress =peer.Conf.NeighborAddress
-	p.Config.PeerAs = uint32(peer.Conf.PeerAs)
-	//FIX ME set ipv6 depending on peerip (for v6 BGP)
-	p.AfiSafis = []bgpconf.AfiSafi{
-		bgpconf.AfiSafi{AfiSafiName: "ipv4-labelled-unicast"}}
-	self.bgpServer.SetBmpConfig([]bgpconf.BmpServer{})
+		self.bgpServer.PeerDelete(p)
 
-	self.bgpServer.PeerDelete(p)
-
-	bgpEndpoint := self.agent.getEndpointByIpVrf(net.ParseIP(self.myBgpPeer), "default")
-	self.agent.datapath.RemoveEndpoint(bgpEndpoint)
-	delete(self.agent.endpointDb, bgpEndpoint.EndpointID)
+		bgpEndpoint := self.agent.getEndpointByIpVrf(net.ParseIP(self.myBgpPeer), "default")
+		self.agent.datapath.RemoveEndpoint(bgpEndpoint)
+		delete(self.agent.endpointDb, bgpEndpoint.EndpointID)
+	}	
 	self.myBgpPeer = ""
 
 	uplink, _ := self.agent.ovsDriver.GetOfpPortNo(self.vlanIntf)
@@ -307,20 +313,26 @@ func (self *OfnetBgp) AddProtoNeighbor(neighborInfo *OfnetProtoNeighborInfo, loc
 	peerAs, _ := strconv.Atoi(neighborInfo.As)
 	p := &bgpconf.Neighbor{}
 	setNeighborConfigValues(p)
-	p.NeighborAddress = neighborInfo.NeighborIP
-	log.Infof("p.NeighborAddress %v is added", p.NeighborAddress)
+	p.Config.NeighborAddress = neighborInfo.NeighborIP
+	log.Infof("p.NeighborAddress %v is added", p.Config.NeighborAddress)
 	p.Config.NeighborAddress = neighborInfo.NeighborIP
 	log.Infof("p.Config.NeighborAddress %v is added", p.Config.NeighborAddress)
 	p.Config.PeerAs = uint32(peerAs)
 	p.Config.LocalAs = uint32(localAs)
 	//FIX ME set ipv6 depending on peerip (for v6 BGP)
 	p.AfiSafis = []bgpconf.AfiSafi{
-		bgpconf.AfiSafi{AfiSafiName: "ipv4-labelled-unicast"}}
+		bgpconf.AfiSafi{
+                                Config: bgpconf.AfiSafiConfig{
+                                        AfiSafiName: "ipv4-labelled-unicast",
+                                },
+                        },
+		}
+
 	self.bgpServer.SetBmpConfig([]bgpconf.BmpServer{})
 
 	self.bgpServer.PeerAdd(*p)
 	self.bgpServer.SetRoutingPolicy(policyConfig)
-
+	epid := self.agent.getEndpointIdByIpVrf(net.ParseIP(self.routerIP), "default")
 
 	log.Infof("Peer %v is added", p.Config.NeighborAddress)
 
@@ -414,11 +426,9 @@ func (self *OfnetBgp) AddLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error {
 	path.Pattrs = append(path.Pattrs, mpreach)
 	//path.Pattrs = append(path.Pattrs, n)
 
-	name := ""
-	arg := &api.ModPathsArguments{
+	arg := &api.InjectMrtRequest{
 		Resource: api.Resource_GLOBAL,
-		Name:     name,
-		Paths:    []*api.Path{path},
+		Paths:     []*api.Path{path},
 	}
 	log.Infof("Received AddLocalProtoRoute arg: %v", arg.Paths)
 
@@ -429,25 +439,21 @@ func (self *OfnetBgp) AddLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error {
 		return nil
 	}
 
-	stream,err := client.ModPaths(context.Background())
+	stream,err := client.InjectMrt(context.Background())
 	if err != nil {
 		log.Errorf("Fail to enforce Modpath", err)
 		return err
 	}
-	
 	err = stream.Send(arg)
 	if err != nil {
 		log.Errorf("Failed to send strean", err)
 		return err
 	}
 	stream.CloseSend()
-	res, e := stream.CloseAndRecv()
+	_, e := stream.CloseAndRecv()
 	if e != nil {
 		log.Errorf("Falied toclose stream ")
 		return e
-	}
-	if res.Code != api.Error_SUCCESS {
-		return fmt.Errorf("error: code: %d, msg: %s", res.Code, res.Msg)
 	}
 	log.Infof("Done- AddLocalProtoRoute to add local endpoint to protocol RIB: %v", pathInfo)
 	return nil
@@ -473,11 +479,9 @@ func (self *OfnetBgp) DeleteLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error
 	n, _ := bgp.NewPathAttributeNextHop(pathInfo.nextHopIP).Serialize()
 	path.Pattrs = append(path.Pattrs, n)
 	path.IsWithdraw = true
-	name := ""
 	paths := []*api.Path{path}
-        arg := &api.ModPathsArguments{	
+        arg := &api.InjectMrtRequest{	
 		Resource: api.Resource_GLOBAL,
-		Name:     name,
 		Paths:    paths,
 	}
 
@@ -488,7 +492,7 @@ func (self *OfnetBgp) DeleteLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error
 		return nil
 	}
 
-	stream,err := client.ModPaths(context.Background())
+	stream,err := client.InjectMrt(context.Background())
 
 	if err != nil {
 		log.Errorf("Fail to enforce Modpathi", err)
@@ -502,21 +506,18 @@ func (self *OfnetBgp) DeleteLocalProtoRoute(pathInfo *OfnetProtoRouteInfo) error
 	}
 	stream.CloseSend()
 
-	res, e := stream.CloseAndRecv()
+	_, e := stream.CloseAndRecv()
 	if e != nil {
 		log.Errorf("Falied toclose stream ")
 		return e
 	}
 
-	if res.Code != api.Error_SUCCESS {
-		return fmt.Errorf("error: code: %d, msg: %s", res.Code, res.Msg)
-	}
 
 	return nil
 }
 
 //monitorBest monitors for route updates/changes form peer
-func (self *OfnetBgp) monitorBest() {
+/*func (self *OfnetBgp) monitorBest() {
 
 	client := api.NewGobgpApiClient(self.cc)
 	if client == nil {
@@ -528,7 +529,7 @@ func (self *OfnetBgp) monitorBest() {
 		Family:       uint32(bgp.RF_IPv4_MPLS),
 	}
 
-	stream, err := client.MonitorBestChanged(context.Background(), arg)
+	stream, err := client.MonitorPeerState(context.Background(), arg)
 	if err != nil {
 		return
 	}
@@ -544,7 +545,7 @@ func (self *OfnetBgp) monitorBest() {
 		self.modRibCh <- dst.Paths[0]
 	}
 	return
-}
+}*/
 
 // monitorPeer is used to monitor the bgp peer state
 func (self *OfnetBgp) monitorPeer() {
@@ -719,7 +720,7 @@ func createBgpServer() (bgpServer *bgpserver.BgpServer, grpcServer *bgpserver.Se
 		go bgpServer.Serve()
 	}
 	// start grpc Server
-	grpcServer = bgpserver.NewGrpcServer(179, bgpServer.GrpcReqCh)
+	grpcServer = bgpserver.NewGrpcServer(":179", bgpServer.GrpcReqCh)
 	if grpcServer == nil {
 		log.Errorf("Error creating bgp server")
 		return
@@ -733,18 +734,18 @@ func createBgpServer() (bgpServer *bgpserver.BgpServer, grpcServer *bgpserver.Se
 func setDefaultGlobalConfigValues(bt *bgpconf.Global) error {
 
 	bt.AfiSafis = []bgpconf.AfiSafi{
-		bgpconf.AfiSafi{AfiSafiName: "ipv4-labelled-unicast"},
-		bgpconf.AfiSafi{AfiSafiName: "ipv4-unicast"},
-		bgpconf.AfiSafi{AfiSafiName: "ipv6-unicast"},
-		bgpconf.AfiSafi{AfiSafiName: "l3vpn-ipv4-unicast"},
-		bgpconf.AfiSafi{AfiSafiName: "l3vpn-ipv6-unicast"},
-		bgpconf.AfiSafi{AfiSafiName: "l2vpn-evpn"},
-		bgpconf.AfiSafi{AfiSafiName: "encap"},
-		bgpconf.AfiSafi{AfiSafiName: "rtc"},
-		bgpconf.AfiSafi{AfiSafiName: "ipv4-flowspec"},
-		bgpconf.AfiSafi{AfiSafiName: "l3vpn-ipv4-flowspec"},
-		bgpconf.AfiSafi{AfiSafiName: "ipv6-flowspec"},
-		bgpconf.AfiSafi{AfiSafiName: "l3vpn-ipv6-flowspec"},
+		bgpconf.AfiSafi{Config: bgpconf.AfiSafiConfig{AfiSafiName: "ipv4-labelled-unicast"},},
+		bgpconf.AfiSafi{Config: bgpconf.AfiSafiConfig{AfiSafiName: "ipv4-unicast"},},
+		bgpconf.AfiSafi{Config: bgpconf.AfiSafiConfig{AfiSafiName: "ipv6-unicast"},},
+		bgpconf.AfiSafi{Config: bgpconf.AfiSafiConfig{AfiSafiName: "l3vpn-ipv4-unicast"},},
+		bgpconf.AfiSafi{Config: bgpconf.AfiSafiConfig{AfiSafiName: "l3vpn-ipv6-unicast"},},
+		bgpconf.AfiSafi{Config: bgpconf.AfiSafiConfig{AfiSafiName: "l2vpn-evpn"},},
+		bgpconf.AfiSafi{Config: bgpconf.AfiSafiConfig{AfiSafiName: "encap"},},
+		bgpconf.AfiSafi{Config: bgpconf.AfiSafiConfig{AfiSafiName: "rtc"},},
+		bgpconf.AfiSafi{Config: bgpconf.AfiSafiConfig{AfiSafiName: "ipv4-flowspec"},},
+		bgpconf.AfiSafi{Config: bgpconf.AfiSafiConfig{AfiSafiName: "l3vpn-ipv4-flowspec"},},
+		bgpconf.AfiSafi{Config: bgpconf.AfiSafiConfig{AfiSafiName: "ipv6-flowspec"},},
+		bgpconf.AfiSafi{Config: bgpconf.AfiSafiConfig{AfiSafiName: "l3vpn-ipv6-flowspec"},},
 	}
 	bt.MplsLabelRange.MinLabel = bgpconf.DEFAULT_MPLS_LABEL_MIN
 	bt.MplsLabelRange.MaxLabel = bgpconf.DEFAULT_MPLS_LABEL_MAX
