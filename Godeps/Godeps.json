@@ -1,7 +1,10 @@
 {
 	"ImportPath": "github.com/contiv/ofnet",
 	"GoVersion": "go1.5",
+<<<<<<< HEAD
 	"GodepVersion": "v74",
+=======
+>>>>>>> upstream/master
 	"Packages": [
 		"./..."
 	],
@@ -194,35 +197,19 @@
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/common",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
+			"Rev": "94f338a137b50db6fa7d32e8cc3b406306616280"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/openflow13",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
+			"Rev": "94f338a137b50db6fa7d32e8cc3b406306616280"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/protocol",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
+			"Rev": "94f338a137b50db6fa7d32e8cc3b406306616280"
 		},
 		{
 			"ImportPath": "github.com/shaleman/libOpenflow/util",
-			"Rev": "89b83cfc0c8fb9d2872729b7484a9f592f074c53"
-		},
-		{
-			"ImportPath": "github.com/spf13/cast",
-			"Rev": "27b586b42e29bec072fe7379259cc719e1289da6"
-		},
-		{
-			"ImportPath": "github.com/spf13/jwalterweatherman",
-			"Rev": "33c24e77fb80341fe7130ee7c594256ff08ccc46"
-		},
-		{
-			"ImportPath": "github.com/spf13/pflag",
-			"Rev": "cb88ea77998c3f024757528e3305022ab50b43be"
-		},
-		{
-			"ImportPath": "github.com/spf13/viper",
-			"Rev": "c1ccc378a054ea8d4e38d8c67f6938d4760b53dd"
+			"Rev": "94f338a137b50db6fa7d32e8cc3b406306616280"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
