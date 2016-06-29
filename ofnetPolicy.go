@@ -20,7 +20,6 @@ import (
 	"net"
 	"net/rpc"
 	"reflect"
-	"strconv"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/contiv/ofnet/ofctrl"
@@ -479,13 +478,13 @@ func (self *PolicyAgent) AddRule(rule *OfnetPolicyRule, ret *bool) error {
 
                 //polFlow1.PushMpls(rule.Sla)
 		//sla1,_ := strconv.ParseUint(rule.Sla,0,64)
-		sla1 :=  0x900000000000
-		if rule.Sla == "Highest Bandwidth"{
-			sla1 :=  0x900200000000
-		} else if rule.Sla == "Lowest Latency"{
-                        sla1 :=  0x900000000000
-		} else if rule.Sla == "Secure Path"{
-                        sla1 :=  0x900100000000
+		sla1 :=  uint64(0x900000000000)
+		if rule.Sla == "highest-bandwidth"{
+			sla1 =  uint64(0x900200000000)
+		} else if rule.Sla == "lowest-latency"{
+                        sla1 =  uint64(0x900000000000)
+		} else if rule.Sla == "secure-path"{
+                        sla1 =  uint64(0x900100000000)
 		}
 		//polFlow1.SetMetadata(uint64(rule.Sla),uint64(rule.Sla))
 		polFlow1.SetMetadata(sla1,sla1)
