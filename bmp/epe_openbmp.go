@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ofnet
+package bmp
 
 // This file constructs the epe label stack for Traffic Engineering using the BGP updates received by OpenBMP
 
@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"os"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -130,13 +131,13 @@ type link_info struct {
 }
 
 // This needs to be sourced from a configuration file
-const bmp_agent = "localhost"
+//const bmp_agent = "localhost"
 
 // This needs to be sourced from a configuration file
-const bmp_port = "8001"
-const url_rib = "http://" + bmp_agent + ":" + bmp_port + "/db_rest/v1/rib"
-const url_links = "http://" + bmp_agent + ":" + bmp_port + "/db_rest/v1/linkstate/epe"
-const url_routers = "http://" + bmp_agent + ":" + bmp_port + "/db_rest/v1/routers"
+//const bmp_port = "8001"
+//const url_rib = "http://" + bmp_agent + ":" + bmp_port + "/db_rest/v1/rib"
+//const url_links = "http://" + bmp_agent + ":" + bmp_port + "/db_rest/v1/linkstate/epe"
+//const url_routers = "http://" + bmp_agent + ":" + bmp_port + "/db_rest/v1/routers"
 
 func has_the_sla(ext_commt, target_sla string) bool {
 
@@ -287,6 +288,13 @@ func Epe_label_SR(source, target, ver_sla string) (bool, []string) {
 	var router_data tbl_router
 	var next_hop_name = ""
 	var label_stack []string
+
+	bmp_agent := os.Getenv("BMP_HOST")
+        log.Infof("BMP host %v",bmp_agent)
+         bmp_port := "8001"
+        url_rib := "http://" + bmp_agent + ":" + bmp_port + "/db_rest/v1/rib"
+        url_links := "http://" + bmp_agent + ":" + bmp_port + "/db_rest/v1/linkstate/epe"
+        url_routers := "http://" + bmp_agent + ":" + bmp_port + "/db_rest/v1/routers"
 
 	te_sla := map[string]string{
 		"high_bandwidth": "3",
@@ -456,7 +464,6 @@ func Epe_label_SR(source, target, ver_sla string) (bool, []string) {
 }
 
 func Get_epe_label_SR(src_ip, dstn_ip, epe_sla string) []string {
-
 	status, label_stack := Epe_label_SR(src_ip, dstn_ip, epe_sla)
 	log.Infof("LABEL STACK: %q\n", label_stack)
 	if status == false {
