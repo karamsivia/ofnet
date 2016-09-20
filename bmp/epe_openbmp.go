@@ -141,15 +141,16 @@ type link_info struct {
 
 func has_the_sla(ext_commt, target_sla string) bool {
 
+	log.Infof("extcom is  %v , target %s", ext_commt , target_sla)
 	sla_info := strings.Split(ext_commt, "rt=0:")
 
 	//log.Debugf("Extended communities  %v", sla_info)
 	for idx := range sla_info {
 
-		//	log.Debugf("sla is  %s", sla_info[idx])
+		log.Infof("sla is  %s", sla_info[idx])
 		if target_sla == strings.TrimSpace(sla_info[idx]) {
 
-			//		log.Debugf("Found sla %v", sla_info[idx])
+			log.Infof("Found sla %v", sla_info[idx])
 			return true
 		}
 	}
@@ -186,6 +187,7 @@ func find_next_hop(lookup_data tbl_lookup, router, sla string, shortest_AS int) 
 	peer_addr := ""
 	peer_name := ""
 
+	log.Infof( "find_next_hop sla %v" , sla ) 
 	//log.Debugf("                 ROUTER **********%v",router)
 	//log.Debugf("                 PATH AS **********%d",shortest_AS)
 	for idx := 0; idx < lookup_data.VAllRoutes.Size; idx++ {
@@ -293,16 +295,17 @@ func Epe_label_SR(source, target, ver_sla string) (bool, []string) {
         log.Infof("BMP host %v",bmp_agent)
          bmp_port := "8001"
         url_rib := "http://" + bmp_agent + ":" + bmp_port + "/db_rest/v1/rib"
-        url_links := "http://" + bmp_agent + ":" + bmp_port + "/db_rest/v1/linkstate/epe"
+        url_links := "http://" + bmp_agent + ":" + bmp_port + "/db_rest/v1/linkstate/links/epe"
         url_routers := "http://" + bmp_agent + ":" + bmp_port + "/db_rest/v1/routers"
 
 	te_sla := map[string]string{
-		"high_bandwidth": "3",
-		"low_latency":    "2",
-		"secure_path":    "4",
+		"high-bandwidth": "3",
+		"low-latency":    "2",
+		"secure-path":    "4",
 	}
 
 	sla := te_sla[ver_sla]
+	log.Infof( "Epe_label_SR sla %s" , sla) 
 	req, err := http.NewRequest("GET", url_routers, nil)
 	if err != nil {
 		// handle err
@@ -467,9 +470,7 @@ func Get_epe_label_SR(src_ip, dstn_ip, epe_sla string) []string {
 	status, label_stack := Epe_label_SR(src_ip, dstn_ip, epe_sla)
 	log.Infof("LABEL STACK: %q\n", label_stack)
 	if status == false {
-		dummy_stack := []string{"24008", "24009", "24013"}
 		log.Errorf(" Error : Could not create the label stack to the destination:")
-		return dummy_stack
 	}
 	return label_stack
 }
